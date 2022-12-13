@@ -21,27 +21,44 @@
  * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
-#include "tool_setup.h"
+#include "test.h"
+#include "memdebug.h"
 
-#if defined(NETWARE)
-
-#ifdef NETWARE
-#  ifdef __NOVELL_LIBC__
-#    include <screen.h>
-#  else
-#    include <nwconio.h>
-#  endif
-#endif
-
-#include "tool_panykey.h"
-
-#include "memdebug.h" /* keep this as LAST include */
-
-void tool_pressanykey(void)
+int test(char *URL)
 {
-#if defined(NETWARE)
-  pressanykey();
-#endif
-}
+  int res;
+  CURL *curl;
 
-#endif /* NETWARE */
+  if(curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
+    fprintf(stderr, "curl_global_init() failed\n");
+    return TEST_ERR_MAJOR_BAD;
+  }
+
+  curl = curl_easy_init();
+  if(!curl) {
+    fprintf(stderr, "curl_easy_init() failed\n");
+    curl_global_cleanup();
+    return TEST_ERR_MAJOR_BAD;
+  }
+
+  test_setopt(curl, CURLOPT_HEADERDATA, stdout);
+  test_setopt(curl, CURLOPT_WRITEDATA, stdout);
+  test_setopt(curl, CURLOPT_VERBOSE, 1L);
+  test_setopt(curl, CURLOPT_URL, URL);
+  test_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
+  test_setopt(curl, CURLOPT_USERNAME, "user");
+  test_setopt(curl, CURLOPT_PASSWORD, "password");
+  test_setopt(curl, CURLOPT_REDIR_PROTOCOLS_STR, "https");
+
+  res = curl_easy_perform(curl);
+  if(res != (int)CURLE_OK) {
+    res = TEST_ERR_MAJOR_BAD;
+    goto test_cleanup;
+  }
+
+test_cleanup:
+  curl_easy_cleanup(curl);
+  curl_global_cleanup();
+
+  return res;
+}
